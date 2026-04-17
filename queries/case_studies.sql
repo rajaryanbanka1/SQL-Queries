@@ -1,37 +1,37 @@
--- 81: Above average orders
-SELECT * FROM orders WHERE amount > (SELECT AVG(amount) FROM orders);
+-- 111: Customer lifetime value
+SELECT customer_id, SUM(amount) FROM orders GROUP BY customer_id;
 
--- 82: Above customer average (correlated subquery)
-SELECT * FROM orders o WHERE amount > (SELECT AVG(amount) FROM orders WHERE customer_id=o.customer_id);
+-- 112: 30-day retention proxy
+SELECT COUNT(DISTINCT customer_id) FROM orders WHERE order_date >= CURRENT_DATE - INTERVAL '30 days';
 
--- 83: CTE for modular query building
-WITH cte AS (SELECT customer_id, SUM(amount) revenue FROM orders GROUP BY customer_id) SELECT * FROM cte;
+-- 113: Repeat customers
+SELECT customer_id FROM orders GROUP BY customer_id HAVING COUNT(*)>1;
 
--- 84: Customers with orders (EXISTS)
-SELECT * FROM customers WHERE EXISTS (SELECT 1 FROM orders WHERE customers.customer_id=orders.customer_id);
+-- 114: Top customers by revenue
+SELECT customer_id, SUM(amount) revenue FROM orders GROUP BY customer_id ORDER BY revenue DESC LIMIT 5;
 
--- 85: Customers without orders (NOT EXISTS)
-SELECT * FROM customers WHERE NOT EXISTS (SELECT 1 FROM orders WHERE customers.customer_id=orders.customer_id);
+-- 115: Funnel conversion (orders → completed payments)
+SELECT COUNT(DISTINCT o.order_id), COUNT(DISTINCT p.order_id) FROM orders o LEFT JOIN payments p ON o.order_id=p.order_id AND p.status='Completed';
 
--- 86: Orders with payments
-SELECT * FROM orders WHERE order_id IN (SELECT order_id FROM payments);
+-- 116: Payment failure rate
+SELECT COUNT(*) FILTER(WHERE status='Failed')*100.0/COUNT(*) FROM payments;
 
--- 87: Orders without payments
-SELECT * FROM orders WHERE order_id NOT IN (SELECT order_id FROM payments);
+-- 117: Product revenue
+SELECT p.product_name, SUM(oi.quantity*oi.price) FROM order_items oi JOIN products p ON oi.product_id=p.product_id GROUP BY p.product_name;
 
--- 88: Common customers across systems
-SELECT DISTINCT customer_id FROM orders INTERSECT SELECT customer_id FROM transactions;
+-- 118: Category revenue
+SELECT p.category, SUM(oi.quantity*oi.price) FROM order_items oi JOIN products p ON oi.product_id=p.product_id GROUP BY p.category;
 
--- 89: All customers across systems
-SELECT customer_id FROM orders UNION SELECT customer_id FROM transactions;
+-- 119: Cross-sell pairs
+SELECT a.product_id, b.product_id, COUNT(*) FROM order_items a JOIN order_items b ON a.order_id=b.order_id AND a.product_id<b.product_id GROUP BY a.product_id,b.product_id;
 
--- 90: Customers only in orders
-SELECT customer_id FROM orders EXCEPT SELECT customer_id FROM transactions;
+-- 120: Multi-product orders
+SELECT order_id FROM order_items GROUP BY order_id HAVING COUNT(DISTINCT product_id)>1;
 
--- 91: Row ranking inside dataset
-SELECT *, ROW_NUMBER() OVER(PARTITION BY customer_id ORDER BY amount DESC) rn FROM orders;
+-- 141: Index suggestion (analysis query)
+EXPLAIN SELECT * FROM orders WHERE customer_id=1;
 
--- 92: Top order per customer
-SELECT * FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY customer_id ORDER BY amount DESC) rn FROM orders) t WHERE rn=1;
+-- 142: Partition simulation (date filter heavy queries)
+SELECT * FROM orders WHERE order_date >= '2023-06-01';
 
-SELECT COUNT(*) FROM orders WHERE amount>10000;
+SELECT COUNT(*) FROM orders;
